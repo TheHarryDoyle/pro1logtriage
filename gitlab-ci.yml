@@ -1,0 +1,21 @@
+stages:
+  - test
+  - docker
+
+test:
+  image: python:3.13-slim
+  stage: test
+  before_script:
+    - pip install --no-cache-dir -r requirements.txt
+  script:
+    - python -m pytest -v
+
+docker-build:
+  image: docker:29
+  stage: docker
+  services:
+    - docker:29-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  script:
+    - docker build -t pro1-log-triage .
