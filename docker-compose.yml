@@ -1,0 +1,8 @@
+services:
+  sre-log-triage:
+    build: .
+    container_name: sre-log-triage-dashboard
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app.db:/app/app.db
