@@ -13,6 +13,19 @@ const elements = {
   severityRules: document.querySelector("#severityRules"),
   componentRules: document.querySelector("#componentRules"),
   triageRules: document.querySelector("#triageRules"),
+  severityForm: document.querySelector("#severityForm"),
+  severityName: document.querySelector("#severityName"),
+  severityKeywords: document.querySelector("#severityKeywords"),
+  componentForm: document.querySelector("#componentForm"),
+  componentName: document.querySelector("#componentName"),
+  componentKeywords: document.querySelector("#componentKeywords"),
+  triageForm: document.querySelector("#triageForm"),
+  triageCategory: document.querySelector("#triageCategory"),
+  triageConfidence: document.querySelector("#triageConfidence"),
+  triageKeywords: document.querySelector("#triageKeywords"),
+  triageAction: document.querySelector("#triageAction"),
+  triageCommands: document.querySelector("#triageCommands"),
+  ruleMessage: document.querySelector("#ruleMessage"),
   recentLogs: document.querySelector("#recentLogs"),
   refreshRules: document.querySelector("#refreshRules"),
   refreshRecent: document.querySelector("#refreshRecent"),
@@ -46,6 +59,25 @@ function setLoading(message) {
 
 function setError(message) {
   elements.resultCard.innerHTML = `<div class="error-state">${escapeHtml(message)}</div>`;
+}
+
+function setRuleMessage(message, className) {
+  elements.ruleMessage.textContent = message;
+  elements.ruleMessage.className = `form-message ${className || ""}`.trim();
+}
+
+function parseCommaList(value) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseLineList(value) {
+  return value
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 async function fetchJson(url, options) {
@@ -191,6 +223,107 @@ async function loadRules() {
   }
 }
 
+async function createRule(url, payload) {
+  return fetchJson(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function addSeverityRule(event) {
+  event.preventDefault();
+  const name = elements.severityName.value.trim();
+  const keywords = parseCommaList(elements.severityKeywords.value);
+
+  if (!name || keywords.length === 0) {
+    setRuleMessage("Severity needs a name and at least one keyword.", "error");
+    return;
+  }
+
+  const button = elements.severityForm.querySelector("button");
+  button.disabled = true;
+  setRuleMessage("Adding severity rule...", "");
+
+  try {
+    await createRule("/rules/severity", { name, keywords });
+    elements.severityForm.reset();
+    setRuleMessage("Severity rule added.", "success");
+    await loadRules();
+  } catch (error) {
+    setRuleMessage(error.message, "error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function addComponentRule(event) {
+  event.preventDefault();
+  const component = elements.componentName.value.trim();
+  const keywords = parseCommaList(elements.componentKeywords.value);
+
+  if (!component || keywords.length === 0) {
+    setRuleMessage("Component needs a name and at least one keyword.", "error");
+    return;
+  }
+
+  const button = elements.componentForm.querySelector("button");
+  button.disabled = true;
+  setRuleMessage("Adding component rule...", "");
+
+  try {
+    await createRule("/rules/components", { component, keywords });
+    elements.componentForm.reset();
+    setRuleMessage("Component rule added.", "success");
+    await loadRules();
+  } catch (error) {
+    setRuleMessage(error.message, "error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function addTriageRule(event) {
+  event.preventDefault();
+  const category = elements.triageCategory.value.trim();
+  const confidence = Number(elements.triageConfidence.value);
+  const keywords = parseCommaList(elements.triageKeywords.value);
+  const suggested_actions = elements.triageAction.value.trim();
+  const commands_to_check = parseLineList(elements.triageCommands.value);
+
+  if (!category || keywords.length === 0 || !suggested_actions) {
+    setRuleMessage("Triage needs a category, keywords, and suggested action.", "error");
+    return;
+  }
+
+  if (Number.isNaN(confidence) || confidence < 0 || confidence > 1) {
+    setRuleMessage("Confidence must be between 0 and 1.", "error");
+    return;
+  }
+
+  const button = elements.triageForm.querySelector("button");
+  button.disabled = true;
+  setRuleMessage("Adding triage rule...", "");
+
+  try {
+    await createRule("/rules/triage", {
+      category,
+      keywords,
+      confidence,
+      suggested_actions,
+      commands_to_check,
+    });
+    elements.triageForm.reset();
+    elements.triageConfidence.value = "0.8";
+    setRuleMessage("Triage rule added.", "success");
+    await loadRules();
+  } catch (error) {
+    setRuleMessage(error.message, "error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function renderRecentCard(log) {
   const firstLines = (log.analyzed_lines || []).slice(0, 4).join("\n") || log.raw_log || "";
   return `
@@ -232,6 +365,9 @@ elements.analyzeText.addEventListener("click", analyzeText);
 elements.analyzeFile.addEventListener("click", analyzeFile);
 elements.refreshRules.addEventListener("click", loadRules);
 elements.refreshRecent.addEventListener("click", loadRecent);
+elements.severityForm.addEventListener("submit", addSeverityRule);
+elements.componentForm.addEventListener("submit", addComponentRule);
+elements.triageForm.addEventListener("submit", addTriageRule);
 elements.logFile.addEventListener("change", () => {
   elements.fileName.textContent = elements.logFile.files[0]?.name || "Choose a .log or .txt file";
 });

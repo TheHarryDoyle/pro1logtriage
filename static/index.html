@@ -59,16 +59,35 @@
         <div class="rules-scroll">
           <article class="rule-section">
             <h3>Severity</h3>
+            <form class="rule-form" id="severityForm">
+              <input id="severityName" type="text" placeholder="Severity name">
+              <input id="severityKeywords" type="text" placeholder="Keywords, comma separated">
+              <button class="secondary-button" type="submit">Add Severity</button>
+            </form>
             <div id="severityRules" class="rule-list"></div>
           </article>
 
           <article class="rule-section">
             <h3>Components</h3>
+            <form class="rule-form" id="componentForm">
+              <input id="componentName" type="text" placeholder="Component name">
+              <input id="componentKeywords" type="text" placeholder="Keywords, comma separated">
+              <button class="secondary-button" type="submit">Add Component</button>
+            </form>
             <div id="componentRules" class="rule-list"></div>
           </article>
 
           <article class="rule-section">
             <h3>Triage</h3>
+            <form class="rule-form triage-form" id="triageForm">
+              <input id="triageCategory" type="text" placeholder="Category">
+              <input id="triageConfidence" type="number" min="0" max="1" step="0.05" value="0.8" placeholder="Confidence">
+              <input id="triageKeywords" type="text" placeholder="Keywords, comma separated">
+              <textarea id="triageAction" rows="3" placeholder="Suggested action"></textarea>
+              <textarea id="triageCommands" rows="3" placeholder="Commands to check, one per line"></textarea>
+              <button class="secondary-button" type="submit">Add Triage Rule</button>
+            </form>
+            <div class="form-message" id="ruleMessage"></div>
             <div id="triageRules" class="rule-list"></div>
           </article>
         </div>
