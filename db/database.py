@@ -9,6 +9,31 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def is_database_ready() -> bool:
+	try:
+		connection = get_db_connection()
+		cursor = connection.cursor()
+
+		cursor.execute("SELECT 1")
+
+		cursor.execute(
+			"""
+			SELECT name
+			FROM sqlite_master
+			WHERE type = 'table'
+			AND name = 'log_analyses'
+			"""
+		)
+
+		table_exists = cursor.fetchone() is not None
+
+		connection.close()
+
+		return table_exists
+
+	except sqlite3.Error:
+		return False
+
 def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()

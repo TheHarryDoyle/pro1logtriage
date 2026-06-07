@@ -35,8 +35,9 @@ def save_log_analysis(raw_log: str, result: AnalyzeLogsResponse) -> int:
         )
     )
     connection.commit()
+    new_id = cursor.lastrowid
     connection.close()
-    return cursor.lastrowid
+    return new_id
 
 def get_recent_log_analyses(limit: int = 10):
     connection = get_db_connection()

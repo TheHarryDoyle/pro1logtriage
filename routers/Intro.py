@@ -1,4 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+
+from db.database import is_database_ready
 
 router = APIRouter(tags=["intro"])
 
@@ -8,4 +10,13 @@ def root():
 
 @router.get("/ready")
 def ready():
-    return {"ready": True}
+	if not is_database_ready():
+		raise HTTPException(
+			status_code=503,
+			detail="Database is not ready"
+		)
+
+	return {
+		"ready": True,
+		"database": "ready"
+	}
