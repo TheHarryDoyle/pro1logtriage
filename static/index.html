@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pro1 Log Triage</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">FastAPI log triage</p>
+        <h1>Pro1 Log Triage</h1>
+      </div>
+      <div class="status-pill" id="apiStatus">Checking API</div>
+    </header>
+
+    <section class="dashboard-grid" aria-label="Log triage dashboard">
+      <section class="panel analyzer-panel" aria-labelledby="analyzerTitle">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Input</p>
+            <h2 id="analyzerTitle">Analyze Logs</h2>
+          </div>
+          <div class="tab-group" role="tablist" aria-label="Input type">
+            <button class="tab-button active" id="textTab" type="button">Text</button>
+            <button class="tab-button" id="fileTab" type="button">File</button>
+          </div>
+        </div>
+
+        <div class="input-view active" id="textView">
+          <textarea id="rawLog" spellcheck="false" placeholder="Paste a log entry or full log file here..."></textarea>
+          <button class="primary-button" id="analyzeText" type="button">Analyze</button>
+        </div>
+
+        <div class="input-view" id="fileView">
+          <label class="file-drop" for="logFile">
+            <span id="fileName">Choose a .log or .txt file</span>
+            <input id="logFile" type="file" accept=".log,.txt,text/plain">
+          </label>
+          <button class="primary-button" id="analyzeFile" type="button">Upload and Analyze</button>
+        </div>
+
+        <div class="result-card" id="resultCard">
+          <div class="empty-state">Analysis output will appear here.</div>
+        </div>
+      </section>
+
+      <section class="panel rules-panel" aria-labelledby="rulesTitle">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Rules</p>
+            <h2 id="rulesTitle">Rule Library</h2>
+          </div>
+          <button class="ghost-button" id="refreshRules" type="button">Refresh</button>
+        </div>
+
+        <div class="rules-scroll">
+          <article class="rule-section">
+            <h3>Severity</h3>
+            <div id="severityRules" class="rule-list"></div>
+          </article>
+
+          <article class="rule-section">
+            <h3>Components</h3>
+            <div id="componentRules" class="rule-list"></div>
+          </article>
+
+          <article class="rule-section">
+            <h3>Triage</h3>
+            <div id="triageRules" class="rule-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel recent-panel" aria-labelledby="recentTitle">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">History</p>
+            <h2 id="recentTitle">Recent Analyses</h2>
+          </div>
+          <button class="ghost-button" id="refreshRecent" type="button">Refresh</button>
+        </div>
+        <div id="recentLogs" class="recent-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
