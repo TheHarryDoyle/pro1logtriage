@@ -149,15 +149,109 @@ These measurements were taken locally against the Docker Compose app on `127.0.0
 | `POST /logs/analyze` | 10 | 47.0 ms | 38.5 ms | 92.6 ms | Parses, triages, and writes the analysis to SQLite |
 | `GET /logs/recent` | 10 | 10.7 ms | 5.1 ms | 58.5 ms | Reads the 10 most recent analyses |
 
-### Cost
+### Compute Cost Model
 
-Runtime cost is effectively zero for a local demo:
+In this section, "cost" means compute cost: CPU work, memory use, SQLite reads/writes, and how much work grows as logs and rule sets get larger.
 
-- No paid API calls.
-- No hosted database.
-- No cloud service required.
-- Docker runs on the local machine.
-- Storage cost is only the local `app.db` file.
+Symbols used below:
+
+- `N` = size of the submitted log text.
+- `L` = number of log lines.
+- `S` = number of severity rules.
+- `C` = number of component rules.
+- `T` = number of triage rules.
+- `Ks`, `Kc`, `Kt` = total keyword checks across severity, component, and triage rules.
+- `R` = number of saved rows in `log_analyses`.
+
+Request path for `POST /logs/analyze`:
+
+```text
+Browser
+  -> FastAPI route /logs/analyze
+  -> parse_log(raw_log)
+      -> split lines
+      -> regex timestamp detection
+      -> load severity rules from SQLite
+      -> keyword scan for severity
+      -> load component rules from SQLite
+      -> keyword scan for component
+  -> triage_log(raw_log)
+      -> load triage rules from SQLite
+      -> keyword scan for triage category
+  -> save_log_analysis(...)
+      -> insert result into SQLite
+  -> JSON response back to browser
+```
+
+Approximate compute cost for text analysis:
+
+| Stage | Work Per Request | Cost Shape |
+| --- | --- | --- |
+| FastAPI JSON parse | Reads request body | `O(N)` memory and CPU |
+| Line splitting | Creates analyzed line list | `O(N)` CPU, `O(L)` list entries |
+| Timestamp detection | Runs a small fixed set of regex searches | `O(N)` |
+| Severity detection | Compares severity keywords against log text | Worst case `O(Ks * N)` |
+| Component detection | Compares component keywords against log text | Worst case `O(Kc * N)` |
+| Triage detection | Compares triage keywords against log text | Worst case `O(Kt * N)` |
+| SQLite rule reads | Loads active rule tables and keyword rows | Roughly `O(S + C + T + keyword rows)` |
+| SQLite analysis write | Inserts raw log and analysis result | `O(N)` data written because raw log and analyzed lines are stored |
+| JSON response | Serializes result back to browser | `O(response size)` |
+
+Current implementation detail: each rule category is loaded from SQLite during analysis. Severity, component, and triage rule lookups are simple and readable, but they do repeat database reads on every analysis request.
+
+Approximate SQLite query cost for one `POST /logs/analyze` request:
+
+| Repository Call | Query Pattern | Notes |
+| --- | --- | --- |
+| `get_severity_rules()` | `1 + S` SELECTs | One query for severity rows, then one keyword query per severity |
+| `get_component_rules()` | `1 + C` SELECTs | One query for component rows, then one keyword query per component |
+| `get_triage_rules()` | `1 + (2 * T)` SELECTs | One query for triage rows, then keyword and command queries per triage rule |
+| `save_log_analysis()` | `1` INSERT | Writes raw log, metadata, commands, and analyzed lines |
+
+So the current database round-trip count is approximately:
+
+```text
+analyze_query_count = (1 + S) + (1 + C) + (1 + 2T) + 1
+                    = S + C + 2T + 4
+```
+
+With the local profiled database counts of `S = 9`, `C = 9`, and `T = 9`, that is about:
+
+```text
+9 + 9 + (2 * 9) + 4 = 40 SQLite statements per text analysis request
+```
+
+For a local demo this is fine because the tables are tiny and SQLite is in-process. If rule counts grow, the first optimization would be to load all rule keywords with joins, or cache active rules in memory and refresh the cache when a rule is added.
+
+Other request costs:
+
+| Endpoint | Primary Cost | Scaling Behavior |
+| --- | --- | --- |
+| `POST /logs/analyze-file` | Reads uploaded file into memory, then follows the same path as text analysis | `O(N)` memory before analysis starts |
+| `GET /logs/recent` | Reads latest 10 saved analyses | Small constant response today because the route limits to 10 rows |
+| `GET /rules/severity` | Reads severity rules and keywords | `O(S + keyword rows)` |
+| `GET /rules/components` | Reads component rules and keywords | `O(C + keyword rows)` |
+| `GET /rules/triage` | Reads triage rules, keywords, and commands | `O(T + keyword rows + command rows)` |
+| `POST /rules/severity` | Inserts one severity and its keywords | `O(number of submitted keywords)` |
+| `POST /rules/components` | Inserts one component and its keywords | `O(number of submitted keywords)` |
+| `POST /rules/triage` | Inserts one triage rule, keywords, and commands | `O(keywords + commands)` |
+
+Memory cost:
+
+- Text analysis stores the submitted log string in memory.
+- The app also creates upper/lowercase copies for matching.
+- The app stores split lines as a Python list.
+- File upload reads the entire file before analysis.
+- Large logs therefore cost more than just CPU time; they also increase memory pressure and grow `app.db` because the raw log is stored.
+
+Practical optimization ideas:
+
+- Cache active rules in memory and invalidate the cache after rule creation.
+- Normalize submitted text once instead of repeatedly converting case.
+- Avoid splitting lines twice in the current request path.
+- Add a max upload size.
+- Add retention or pruning for `log_analyses`.
+- Batch rule keyword reads with joins to reduce the number of SQLite statements.
 
 ### Current Database Size
 
