@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from models.log_models import AnalyzeLogsRequest, AnalyzeLogsResponse
 from services.log_parser import parse_log
 from services.triage_engine import triage_log
+from repositories.log_repository import save_log_analysis, get_recent_log_analyses
 
 router = APIRouter(prefix="/logs", tags=["logs"])
 
@@ -25,6 +26,7 @@ def analyze_logs(request: AnalyzeLogsRequest):
         commands_to_check=triage_result["commands_to_check"],
         analyzed_lines=lines  
     )
+    save_log_analysis(request.raw_log, response)
     return response
     
 
@@ -35,4 +37,4 @@ def analyze_logs_file(file: bytes):
 
 @router.get("/recent")
 def get_recent_logs():
-    return {"logs": []}
+    return {"logs": get_recent_log_analyses()}
